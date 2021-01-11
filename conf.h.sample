@@ -1,4 +1,4 @@
-#define WIFI_SSID ""
-#define WIFI_PASSWD ""
-#define AMBIENT_CHANNEL_ID (31140)
-#define AMBIENT_WRITE_KEY ""
+constexpr const char * const WIFI_SSID = "";
+constexpr const char * const WIFI_PASSWD = "";
+constexpr const uint32_t AMBIENT_CHANNEL_ID = 0;
+constexpr const char * const AMBIENT_WRITE_KEY = "";
