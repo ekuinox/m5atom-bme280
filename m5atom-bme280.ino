@@ -49,9 +49,11 @@ struct Threshold {
 };
 
 struct Values {
-  static auto constexpr TEMPERATURE = Threshold<float> { -40.0f, 85.0f };
-  static auto constexpr HUMIDITY = Threshold<float> { 0.0f, 100.0f };
-  static auto constexpr ATMOSPHERIC_PRESSURE = Threshold<float> { 300 * 100.0f, 1100 * 100.0f };
+  static constexpr auto TEMPERATURE = Threshold<float> { -40.0f, 85.0f };
+  static constexpr auto HUMIDITY = Threshold<float> { 0.0f, 100.0f };
+  static constexpr auto ATMOSPHERIC_PRESSURE = Threshold<float> { 300.0f, 1100.0f };
+  static constexpr auto TEMPERATURE_UNIT = BME280::TempUnit_Celsius;
+  static constexpr auto ATMOSPHERIC_PRESSURE_UNIT = BME280::PresUnit_hPa;
 
   /**
    * 摂氏温度
@@ -64,7 +66,7 @@ struct Values {
   const float humidity;
 
   /**
-   * 気圧 (Pa)
+   * 気圧 (hPa)
    */
   const float atmosphericPressure;
 
@@ -249,13 +251,11 @@ auto lit(const ColorGRB & color) -> void {
 }
 
 auto Values::read(BME280I2C & bme) -> Values {
-  const auto tempUnit = BME280::TempUnit(BME280::TempUnit_Celsius);
-  const auto presUnit = BME280::PresUnit(BME280::PresUnit_Pa);
   auto temp = float { NAN };
   auto hum = float { NAN };
   auto pres = float { NAN };
 
-  bme.read(pres, temp, hum, tempUnit, presUnit);
+  bme.read(pres, temp, hum, TEMPERATURE_UNIT, ATMOSPHERIC_PRESSURE_UNIT);
 
   const auto isValid = TEMPERATURE.isValid(temp) && HUMIDITY.isValid(hum) && ATMOSPHERIC_PRESSURE.isValid(pres);
 
@@ -280,7 +280,7 @@ auto Values::println(Stream & serial) const -> void {
   serial.print("% RH");
   serial.print("\t\tPressure: ");
   serial.print(this->atmosphericPressure);
-  serial.println("Pa");
+  serial.println("hPa");
 }
 
 auto Time::update() -> void {
