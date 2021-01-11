@@ -4,7 +4,9 @@
 #include <WiFi.h>
 #include <Ambient.h>
 #include <Ethernet.h>
-#include "./conf.h"
+#include "./values.hpp"
+#include "./time.hpp"
+#include "./conf.hpp"
 
 #define ENABLE_SERVER (0)
 
@@ -13,100 +15,11 @@ constexpr auto SCK_PIN = 19; // SCL
 constexpr auto SDI_PIN = 22; // SDA
 constexpr auto AMBIENT_SEND_INTERVAL = 60 * 1000; // Ambient
 
-// Ambientのチャートフィールド対応
-enum class AmbientField {
-  Temperature = 1,
-  Humidity = 2,
-  AtmosphericPressure = 3,
-};
-
 // LED用の色
 enum class ColorGRB : uint32_t {
   Red = 0x00ff00,
   Green = 0xff0000,
   Orange = 0xa5ff00,
-};
-
-// 閾値
-template <typename T>
-struct Threshold {
-  /**
-   * 最小値
-   */
-  const T min;
-
-  /**
-   * 最大値
-   */
-  const T max;
-  
-  /**
-   * valueが有効か
-   */
-  auto isValid(const T & value) const -> bool {
-    return !isnan(value) && this->min <= value && value <= this->max;
-  }
-};
-
-struct Values {
-  static constexpr auto TEMPERATURE = Threshold<float> { -40.0f, 85.0f };
-  static constexpr auto HUMIDITY = Threshold<float> { 0.0f, 100.0f };
-  static constexpr auto ATMOSPHERIC_PRESSURE = Threshold<float> { 300.0f, 1100.0f };
-  static constexpr auto TEMPERATURE_UNIT = BME280::TempUnit_Celsius;
-  static constexpr auto ATMOSPHERIC_PRESSURE_UNIT = BME280::PresUnit_hPa;
-
-  /**
-   * 摂氏温度
-   */
-  const float temperature;
-
-  /**
-   * 湿度
-   */
-  const float humidity;
-
-  /**
-   * 気圧 (hPa)
-   */
-  const float atmosphericPressure;
-
-  /**
-   * 有効か
-   */
-  const bool isValid;
-
-  /**
-   * Ambientにセンサの値を送信する
-   */
-  auto sendToAmbient(Ambient & ambient) const -> bool;
-
-  /**
-   * Serialに出力する
-   */
-  auto println(Stream & serial) const -> void;
-
-  /**
-   * センサの値を取得する
-   */
-  static auto read(BME280I2C & bme) -> Values;
-};
-
-class Time {
-  /**
-   * 最終更新時刻
-   */
-  uint64_t lastUpdated = 0;
-
-public:
-  /**
-   * lastUpdatedを更新する
-   */
-  auto update() -> void;
-
-  /**
-   * 指定した時間が過ぎているか
-   */
-  auto isElapsed(const uint64_t & span) const -> bool;
 };
 
 /**
@@ -248,54 +161,4 @@ auto dumpStatus(Stream & stream) -> void {
 
 auto lit(const ColorGRB & color) -> void {
   M5.dis.drawpix(0, static_cast<uint32_t>(color));
-}
-
-auto Values::read(BME280I2C & bme) -> Values {
-  auto temp = float { NAN };
-  auto hum = float { NAN };
-  auto pres = float { NAN };
-
-  bme.read(pres, temp, hum, TEMPERATURE_UNIT, ATMOSPHERIC_PRESSURE_UNIT);
-
-  const auto isValid = TEMPERATURE.isValid(temp) && HUMIDITY.isValid(hum) && ATMOSPHERIC_PRESSURE.isValid(pres);
-
-  return {
-    temp, hum, pres, isValid
-  };
-}
-
-auto Values::sendToAmbient(Ambient & ambient) const -> bool {
-  const auto ok = ambient.set(static_cast<uint8_t>(AmbientField::Temperature), this->temperature)
-    && ambient.set(static_cast<uint8_t>(AmbientField::Humidity), this->humidity)
-    && ambient.set(static_cast<uint8_t>(AmbientField::AtmosphericPressure), this->atmosphericPressure);
-  return ok && ambient.send();
-}
-
-auto Values::println(Stream & serial) const -> void {
-  serial.print("Temp: ");
-  serial.print(this->temperature);
-  serial.print("°C");
-  serial.print("\t\tHumidity: ");
-  serial.print(this->humidity);
-  serial.print("% RH");
-  serial.print("\t\tPressure: ");
-  serial.print(this->atmosphericPressure);
-  serial.println("hPa");
-}
-
-auto Time::update() -> void {
-  this->lastUpdated = millis();
-}
-
-auto Time::isElapsed(const uint64_t & span) const -> bool {
-  // 0は初回とみなしてtrueを返す
-  if (this->lastUpdated == 0) {
-    return true;
-  }
-  const auto current = millis();
-  if (current >= this->lastUpdated) {
-    return current - this->lastUpdated > span;
-  }
-  // 過去にupdateした時点よりcurrentの方が小さい場合
-  return -1UL - this->lastUpdated + current > span; // 桁溢れまでの量 + 桁溢れした量 > span
 }
