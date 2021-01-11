@@ -44,7 +44,7 @@ struct Threshold {
    * valueが有効か
    */
   auto isValid(const T & value) const -> bool {
-    return this->min <= value && value <= this->max;
+    return !isnan(value) && this->min <= value && value <= this->max;
   }
 };
 
