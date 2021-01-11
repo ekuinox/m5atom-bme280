@@ -135,7 +135,7 @@ auto setup() -> void {
 
   xTaskCreatePinnedToCore(readValuesTask, "readValuesTask", 4096, NULL, 1, NULL, 0);
   #if ENABLE_SERVER
-    xTaskCreatePinnedToCore(readHttpTask, "readHttpTask", 4096, NULL, 1, NULL, 1);
+  xTaskCreatePinnedToCore(readHttpTask, "readHttpTask", 4096, NULL, 1, NULL, 1);
   #endif
 }
 
