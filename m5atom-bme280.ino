@@ -5,9 +5,10 @@
 #include <Ambient.h>
 #include "./conf.h"
 
-#define SERIAL_BAUD (115200)
-#define SCK_PIN (19) // SCL
-#define SDI_PIN (22) // SDA
+constexpr auto SERIAL_BAUD = 115200;
+constexpr auto SCK_PIN = 19; // SCL
+constexpr auto SDI_PIN = 22; // SDA
+constexpr auto AMBIENT_SEND_INTERVAL = 30 * 1000; // Ambient
 
 enum class AmbientField {
   Temperature = 1,
@@ -15,15 +16,48 @@ enum class AmbientField {
   AtmosphericPressure = 3,
 };
 
+struct Values {
+  /**
+   * 摂氏温度
+   */
+  float temperature;
+
+  /**
+   * 湿度
+   */
+  float humidity;
+
+  /**
+   * 気圧 (Pa)
+   */
+  float atmosphericPressure;
+
+  /**
+   * Ambientにセンサの値を送信する
+   */
+  auto sendToAmbient(Ambient & ambient) const -> bool;
+
+  /**
+   * Serialに出力する
+   */
+  auto println(Stream & serial) const -> void;
+
+  /**
+   * センサの値を取得する
+   */
+  static auto read(BME280I2C & bme) -> Values;
+};
+
 WiFiClient wifi;
 Ambient ambient;
 BME280I2C bme;
 
-float toCelsius(const float & f) {
-  return (f - 32) * 5 / 9;
-}
+/**
+ * 華氏温度を摂氏温度に変換する
+ */
+auto toCelsius(const float & f) -> float;
 
-void setup() {
+auto setup() -> void {
   // Start M5
   M5.begin(true, false, true);
   delay(50);
@@ -63,14 +97,19 @@ void setup() {
 
 }
 
-void loop() {
-   printBME280Data(&Serial);
-   delay(500);
+auto loop() -> void {
+  const auto values = Values::read(bme);
+  values.sendToAmbient(ambient);
+  values.println(Serial);
+  delay(AMBIENT_SEND_INTERVAL);
 }
 
-void printBME280Data(Stream* client) {
-  float temp(NAN), hum(NAN), pres(NAN);
+auto toCelsius(const float & f) -> float {
+  return (f - 32) * 5 / 9;
+}
 
+auto Values::read(BME280I2C & bme) -> Values {
+  float temp(NAN), hum(NAN), pres(NAN);
   BME280::TempUnit tempUnit(BME280::TempUnit_Celsius);
   BME280::PresUnit presUnit(BME280::PresUnit_Pa);
 
@@ -80,22 +119,26 @@ void printBME280Data(Stream* client) {
     temp = toCelsius(temp);
   }
 
-  const auto ok = ambient.set(static_cast<uint8_t>(AmbientField::Temperature), temp)
-    && ambient.set(static_cast<uint8_t>(AmbientField::Humidity), hum)
-    && ambient.set(static_cast<uint8_t>(AmbientField::AtmosphericPressure), pres);
-  if (ok) {
-    ambient.send();
-  }
+  return {
+    temp, hum, pres,
+  };
+}
 
-  client->print("Temp: ");
-  client->print(temp);
-  client->print("°C");
-  client->print("\t\tHumidity: ");
-  client->print(hum);
-  client->print("% RH");
-  client->print("\t\tPressure: ");
-  client->print(pres);
-  client->println("Pa");
+auto Values::sendToAmbient(Ambient & ambient) const -> bool {
+  const auto ok = ambient.set(static_cast<uint8_t>(AmbientField::Temperature), this->temperature)
+    && ambient.set(static_cast<uint8_t>(AmbientField::Humidity), this->humidity)
+    && ambient.set(static_cast<uint8_t>(AmbientField::AtmosphericPressure), this->atmosphericPressure);
+  return ok && ambient.send();
+}
 
-  delay(1000);
+auto Values::println(Stream & serial) const -> void {
+  serial.print("Temp: ");
+  serial.print(this->temperature);
+  serial.print("°C");
+  serial.print("\t\tHumidity: ");
+  serial.print(this->humidity);
+  serial.print("% RH");
+  serial.print("\t\tPressure: ");
+  serial.print(this->atmosphericPressure);
+  serial.println("Pa");
 }
