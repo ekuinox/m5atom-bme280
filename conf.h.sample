@@ -1,0 +1,4 @@
+#define WIFI_SSID ""
+#define WIFI_PASSWD ""
+#define AMBIENT_CHANNEL_ID (31140)
+#define AMBIENT_WRITE_KEY ""
