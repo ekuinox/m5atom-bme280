@@ -100,9 +100,11 @@ auto loop() -> void {
 }
 
 auto Values::read(BME280I2C & bme) -> Values {
-  float temp(NAN), hum(NAN), pres(NAN);
-  BME280::TempUnit tempUnit(BME280::TempUnit_Celsius);
-  BME280::PresUnit presUnit(BME280::PresUnit_Pa);
+  const auto tempUnit = BME280::TempUnit(BME280::TempUnit_Celsius);
+  const auto presUnit = BME280::PresUnit(BME280::PresUnit_Pa);
+  auto temp = float{NAN};
+  auto hum = float{NAN};
+  auto pres = float{NAN};
 
   bme.read(pres, temp, hum, tempUnit, presUnit);
 
