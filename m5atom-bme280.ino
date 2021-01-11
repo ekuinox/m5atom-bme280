@@ -13,13 +13,46 @@ constexpr auto SCK_PIN = 19; // SCL
 constexpr auto SDI_PIN = 22; // SDA
 constexpr auto AMBIENT_SEND_INTERVAL = 60 * 1000; // Ambient
 
+// Ambientのチャートフィールド対応
 enum class AmbientField {
   Temperature = 1,
   Humidity = 2,
   AtmosphericPressure = 3,
 };
 
+// LED用の色
+enum class ColorGRB : uint32_t {
+  Red = 0x00ff00,
+  Green = 0xff0000,
+  Orange = 0xa5ff00,
+};
+
+// 閾値
+template <typename T>
+struct Threshold {
+  /**
+   * 最小値
+   */
+  const T min;
+
+  /**
+   * 最大値
+   */
+  const T max;
+  
+  /**
+   * valueが有効か
+   */
+  auto isValid(const T & value) const -> bool {
+    return this->min <= value && value <= this->max;
+  }
+};
+
 struct Values {
+  static auto constexpr TEMPERATURE = Threshold<float> { -40.0f, 85.0f };
+  static auto constexpr HUMIDITY = Threshold<float> { 0.0f, 100.0f };
+  static auto constexpr ATMOSPHERIC_PRESSURE = Threshold<float> { 300 * 100.0f, 1100 * 100.0f };
+
   /**
    * 摂氏温度
    */
@@ -34,6 +67,11 @@ struct Values {
    * 気圧 (Pa)
    */
   const float atmosphericPressure;
+
+  /**
+   * 有効か
+   */
+  const bool isValid;
 
   /**
    * Ambientにセンサの値を送信する
@@ -86,6 +124,11 @@ auto readHttpTask(void * arg) -> void;
  */
 auto dumpStatus(Stream & stream) -> void;
 
+/**
+ * LEDを点灯させる
+ */
+auto lit(const ColorGRB & color) -> void;
+
 WiFiClient wifi;
 WiFiServer server(80);
 Ambient ambient;
@@ -96,7 +139,7 @@ auto setup() -> void {
   M5.begin(true, false, true);
   delay(50);
   // 赤色に点灯させる
-  M5.dis.drawpix(0, 0x00ff00);
+  lit(ColorGRB::Red);
 
   // Start serial
   Serial.begin(SERIAL_BAUD);
@@ -129,9 +172,10 @@ auto setup() -> void {
 
   // Start server
   server.begin();
-  
-  // chipModelがBME280あれば緑、そうでなければ赤に点灯させる
-  M5.dis.drawpix(0, bme.chipModel() == BME280::ChipModel::ChipModel_BME280 ? 0xff0000 : 0x00ff00); //GRB
+
+  // chipModelがBME280か
+  const auto isBME280 = bme.chipModel() == BME280::ChipModel::ChipModel_BME280;
+  lit(isBME280 ? ColorGRB::Green : ColorGRB::Red); //GRB
 
   xTaskCreatePinnedToCore(readValuesTask, "readValuesTask", 4096, NULL, 1, NULL, 0);
   #if ENABLE_SERVER
@@ -153,10 +197,16 @@ auto readValuesTask(void * arg) -> void {
   auto time = Time();
   while (true) {
     const auto values = Values::read(bme);
-    values.println(Serial);
-    if (time.isElapsed(AMBIENT_SEND_INTERVAL) && values.sendToAmbient(ambient)) {
-      Serial.println("send values to ambient");
-      time.update();
+    // 値が期待する範囲内か
+    if (values.isValid) {
+      values.println(Serial);
+      if (time.isElapsed(AMBIENT_SEND_INTERVAL) && values.sendToAmbient(ambient)) {
+        Serial.println("send values to ambient");
+        time.update();
+      }
+      lit(ColorGRB::Green); // 緑色
+    } else {
+      lit(ColorGRB::Orange); // オレンジ色
     }
     delay(1000);
   }
@@ -194,6 +244,10 @@ auto dumpStatus(Stream & stream) -> void {
   Serial.println(WiFi.localIP());
 }
 
+auto lit(const ColorGRB & color) -> void {
+  M5.dis.drawpix(0, static_cast<uint32_t>(color));
+}
+
 auto Values::read(BME280I2C & bme) -> Values {
   const auto tempUnit = BME280::TempUnit(BME280::TempUnit_Celsius);
   const auto presUnit = BME280::PresUnit(BME280::PresUnit_Pa);
@@ -203,8 +257,10 @@ auto Values::read(BME280I2C & bme) -> Values {
 
   bme.read(pres, temp, hum, tempUnit, presUnit);
 
+  const auto isValid = TEMPERATURE.isValid(temp) && HUMIDITY.isValid(hum) && ATMOSPHERIC_PRESSURE.isValid(pres);
+
   return {
-    temp, hum, pres,
+    temp, hum, pres, isValid
   };
 }
 
