@@ -4,28 +4,23 @@
 #define SERIAL_BAUD 115200
 #define SCK_PIN (19) // SCL
 #define SDI_PIN (22) // SDA
-#define LED_PIN (23)
 
 BME280I2C bme;
 
 void setup() {
   Serial.begin(SERIAL_BAUD);
 
-  while(!Serial);
+  while (!Serial);
 
   pinMode(SCK_PIN, INPUT_PULLUP);
   pinMode(SDI_PIN, INPUT_PULLUP);
-  pinMode(LED_PIN, OUTPUT);
 
   Wire.begin(SDI_PIN, SCK_PIN);
 
-  while(!bme.begin())
-  {
+  while (!bme.begin()) {
     Serial.println("Could not find BME280 sensor!");
     delay(1000);
   }
-
-  digitalWrite(LED_PIN, bme.chipModel() == BME280::ChipModel_BME280 ? LOW : HIGH);
 }
 
 void loop() {
