@@ -45,9 +45,12 @@ auto dumpStatus(Stream & stream) -> void;
 auto lit(const ColorGRB & color) -> void;
 
 WiFiClient wifi;
-WiFiServer server(80);
 Ambient ambient;
 BME280I2C bme;
+
+#if ENABLE_SERVER
+WiFiServer server(80);
+#endif
 
 auto setup() -> void {
   // Start M5
@@ -85,8 +88,10 @@ auto setup() -> void {
     delay(1000);
   }
 
+  #if ENABLE_SERVER
   // Start server
   server.begin();
+  #endif
 
   // chipModelがBME280か
   const auto isBME280 = bme.chipModel() == BME280::ChipModel::ChipModel_BME280;
