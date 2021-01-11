@@ -52,11 +52,6 @@ WiFiClient wifi;
 Ambient ambient;
 BME280I2C bme;
 
-/**
- * 華氏温度を摂氏温度に変換する
- */
-auto toCelsius(const float & f) -> float;
-
 auto setup() -> void {
   // Start M5
   M5.begin(true, false, true);
@@ -104,20 +99,12 @@ auto loop() -> void {
   delay(AMBIENT_SEND_INTERVAL);
 }
 
-auto toCelsius(const float & f) -> float {
-  return (f - 32) * 5 / 9;
-}
-
 auto Values::read(BME280I2C & bme) -> Values {
   float temp(NAN), hum(NAN), pres(NAN);
   BME280::TempUnit tempUnit(BME280::TempUnit_Celsius);
   BME280::PresUnit presUnit(BME280::PresUnit_Pa);
 
   bme.read(pres, temp, hum, tempUnit, presUnit);
-
-  if (tempUnit == BME280::TempUnit_Fahrenheit) {
-    temp = toCelsius(temp);
-  }
 
   return {
     temp, hum, pres,
