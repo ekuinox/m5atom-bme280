@@ -8,7 +8,7 @@
 constexpr auto SERIAL_BAUD = 115200;
 constexpr auto SCK_PIN = 19; // SCL
 constexpr auto SDI_PIN = 22; // SDA
-constexpr auto AMBIENT_SEND_INTERVAL = 30 * 1000; // Ambient
+constexpr auto AMBIENT_SEND_INTERVAL = 60 * 1000; // Ambient
 
 enum class AmbientField {
   Temperature = 1,
@@ -46,6 +46,24 @@ struct Values {
    * センサの値を取得する
    */
   static auto read(BME280I2C & bme) -> Values;
+};
+
+class Time {
+  /**
+   * 最終更新時刻
+   */
+  uint64_t lastUpdated = 0;
+
+public:
+  /**
+   * lastUpdatedを更新する
+   */
+  auto update() -> void;
+
+  /**
+   * 指定した時間が過ぎているか
+   */
+  auto isElapsed(const uint64_t & span) const -> bool;
 };
 
 WiFiClient wifi;
@@ -93,18 +111,22 @@ auto setup() -> void {
 }
 
 auto loop() -> void {
+  static auto time = Time();
   const auto values = Values::read(bme);
-  values.sendToAmbient(ambient);
   values.println(Serial);
-  delay(AMBIENT_SEND_INTERVAL);
+  if (time.isElapsed(AMBIENT_SEND_INTERVAL) && values.sendToAmbient(ambient)) {
+    Serial.println("send values to ambient");
+    time.update();
+  }
+  delay(1000);
 }
 
 auto Values::read(BME280I2C & bme) -> Values {
   const auto tempUnit = BME280::TempUnit(BME280::TempUnit_Celsius);
   const auto presUnit = BME280::PresUnit(BME280::PresUnit_Pa);
-  auto temp = float{NAN};
-  auto hum = float{NAN};
-  auto pres = float{NAN};
+  auto temp = float { NAN };
+  auto hum = float { NAN };
+  auto pres = float { NAN };
 
   bme.read(pres, temp, hum, tempUnit, presUnit);
 
@@ -130,4 +152,21 @@ auto Values::println(Stream & serial) const -> void {
   serial.print("\t\tPressure: ");
   serial.print(this->atmosphericPressure);
   serial.println("Pa");
+}
+
+auto Time::update() -> void {
+  this->lastUpdated = millis();
+}
+
+auto Time::isElapsed(const uint64_t & span) const -> bool {
+  // 0は初回とみなしてtrueを返す
+  if (this->lastUpdated == 0) {
+    return true;
+  }
+  const auto current = millis();
+  if (current >= this->lastUpdated) {
+    return current - this->lastUpdated > span;
+  }
+  // 過去にupdateした時点よりcurrentの方が小さい場合
+  return -1UL - this->lastUpdated + current > span; // 桁溢れまでの量 + 桁溢れした量 > span
 }
