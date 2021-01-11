@@ -1,5 +1,6 @@
 #include <BME280I2C.h>
 #include <Wire.h>
+#include <M5Atom.h>
 
 #define SERIAL_BAUD 115200
 #define SCK_PIN (19) // SCL
@@ -8,6 +9,12 @@
 BME280I2C bme;
 
 void setup() {
+  M5.begin(true, false, true);
+  delay(50);
+
+  // 赤色に点灯させる
+  M5.dis.drawpix(0, 0x00ff00);
+  
   Serial.begin(SERIAL_BAUD);
 
   while (!Serial);
@@ -21,6 +28,9 @@ void setup() {
     Serial.println("Could not find BME280 sensor!");
     delay(1000);
   }
+
+  // chipModelがBME280あれば緑、そうでなければ赤に点灯させる
+  M5.dis.drawpix(0, bme.chipModel() == BME280::ChipModel::ChipModel_BME280 ? 0xff0000 : 0x00ff00); //GRB
 }
 
 void loop() {
