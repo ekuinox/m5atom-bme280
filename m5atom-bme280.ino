@@ -66,6 +66,8 @@ public:
   auto isElapsed(const uint64_t & span) const -> bool;
 };
 
+auto readValuesTask(void * arg) -> void;
+
 WiFiClient wifi;
 Ambient ambient;
 BME280I2C bme;
@@ -108,17 +110,24 @@ auto setup() -> void {
   // chipModelがBME280あれば緑、そうでなければ赤に点灯させる
   M5.dis.drawpix(0, bme.chipModel() == BME280::ChipModel::ChipModel_BME280 ? 0xff0000 : 0x00ff00); //GRB
 
+  xTaskCreatePinnedToCore(readValuesTask, "readValuesTask", 4096, NULL, 1, NULL, 0);
+}
+
+auto readValuesTask(void * arg) -> void {
+  auto time = Time();
+  while (true) {
+    const auto values = Values::read(bme);
+    values.println(Serial);
+    if (time.isElapsed(AMBIENT_SEND_INTERVAL) && values.sendToAmbient(ambient)) {
+      Serial.println("send values to ambient");
+      time.update();
+    }
+    delay(1000);
+  }
 }
 
 auto loop() -> void {
-  static auto time = Time();
-  const auto values = Values::read(bme);
-  values.println(Serial);
-  if (time.isElapsed(AMBIENT_SEND_INTERVAL) && values.sendToAmbient(ambient)) {
-    Serial.println("send values to ambient");
-    time.update();
-  }
-  delay(1000);
+  //
 }
 
 auto Values::read(BME280I2C & bme) -> Values {
