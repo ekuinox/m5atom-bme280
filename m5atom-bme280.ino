@@ -128,12 +128,11 @@ auto readValuesTask(void * arg) -> void {
     // 値が期待する範囲内か
     if (values.isValid) {
       values.println(Serial);
-      const auto ok = values.sendToInflux(influx, INFLUX_MEASUREMENT);
-      if (!ok) {
-        Serial.println("failed to send to influx");
-      }
-      if (time.isElapsed(AMBIENT_SEND_INTERVAL) && values.sendToAmbient(ambient)) {
-        Serial.println("send values to ambient");
+      const auto ok = time.isElapsed(AMBIENT_SEND_INTERVAL)
+        && values.sendToInflux(influx, INFLUX_MEASUREMENT)
+        && values.sendToAmbient(ambient);
+      if (ok) {
+        Serial.println("send values to ambient & influx");
         time.update();
       }
       lit(ColorGRB::Green); // 緑色
