@@ -4,6 +4,7 @@
 #include <WiFi.h>
 #include <Ambient.h>
 #include <Ethernet.h>
+#include <InfluxDbClient.h>
 #include "./values.hpp"
 #include "./time.hpp"
 #include "./conf.hpp"
@@ -47,6 +48,7 @@ auto lit(const ColorGRB & color) -> void;
 WiFiClient wifi;
 Ambient ambient;
 BME280I2C bme;
+auto influx = InfluxDBClient(INFLUX_URL, INFLUX_DB);
 
 #if ENABLE_SERVER
 WiFiServer server(80);
@@ -74,6 +76,12 @@ auto setup() -> void {
 
   // Start ambient
   ambient.begin(AMBIENT_CHANNEL_ID, AMBIENT_WRITE_KEY, &wifi);
+
+  // Start influxdb
+  influx.setConnectionParamsV1(INFLUX_URL, INFLUX_DB, INFLUX_USERNAME, INFLUX_PASSWORD);
+  if (!influx.validateConnection()) {
+    Serial.println("Could not connect influxdb");
+  }
 
   // Setup pins
   pinMode(SCK_PIN, INPUT_PULLUP);
@@ -120,6 +128,10 @@ auto readValuesTask(void * arg) -> void {
     // 値が期待する範囲内か
     if (values.isValid) {
       values.println(Serial);
+      const auto ok = values.sendToInflux(influx, INFLUX_MEASUREMENT);
+      if (!ok) {
+        Serial.println("failed to send to influx");
+      }
       if (time.isElapsed(AMBIENT_SEND_INTERVAL) && values.sendToAmbient(ambient)) {
         Serial.println("send values to ambient");
         time.update();

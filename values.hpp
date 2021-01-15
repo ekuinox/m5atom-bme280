@@ -1,6 +1,7 @@
 class Ambient;
 class Stream;
 class BME280I2C;
+class InfluxDBClient;
 
 // 閾値
 template <typename T>
@@ -48,6 +49,11 @@ struct Values {
    * Ambientにセンサの値を送信する
    */
   auto sendToAmbient(Ambient & ambient) const -> bool;
+
+  /**
+   * influxに値を送信する
+   */
+  auto sendToInflux(InfluxDBClient & client, const char * const measurement) const -> bool;
 
   /**
    * Serialに出力する

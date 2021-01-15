@@ -1,5 +1,7 @@
 #include <Ambient.h>
 #include <BME280I2C.h>
+#include <InfluxDbClient.h>
+#include <Point.h>
 #include "./values.hpp"
 
 // Ambientのチャートフィールド対応
@@ -34,6 +36,14 @@ auto Values::sendToAmbient(Ambient & ambient) const -> bool {
     && ambient.set(static_cast<uint8_t>(AmbientField::Humidity), this->humidity)
     && ambient.set(static_cast<uint8_t>(AmbientField::AtmosphericPressure), this->atmosphericPressure);
   return ok && ambient.send();
+}
+
+auto Values::sendToInflux(InfluxDBClient & client, const char * const measurement) const -> bool {
+  auto point = Point(measurement);
+  point.addField("temperature", this->temperature);
+  point.addField("humidity", this->humidity);
+  point.addField("atmosphericPressure", this->atmosphericPressure);
+  return client.writePoint(point);
 }
 
 auto Values::println(Stream & serial) const -> void {
