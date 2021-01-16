@@ -45,9 +45,9 @@ auto dumpStatus(Stream & stream) -> void;
  */
 auto lit(const ColorGRB & color) -> void;
 
-WiFiClient wifi;
-Ambient ambient;
-BME280I2C bme;
+auto wifi = WiFiClient();
+auto ambient = Ambient();
+auto bme = BME280I2C();
 auto influx = InfluxDBClient(INFLUX_URL, INFLUX_DB);
 
 #if ENABLE_SERVER
