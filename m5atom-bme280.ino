@@ -122,23 +122,31 @@ auto loop() -> void {
 }
 
 auto readValuesTask(void * arg) -> void {
-  auto time = Time();
+  const auto onReadValues = [&](const Values & values) -> bool {
+    static auto time = Time();
+    // 値が不正
+    if (!values.isValid) return false;
+    values.println(Serial);
+
+    // 更新間隔が短すぎる
+    if (!time.isElapsed(AMBIENT_SEND_INTERVAL)) return true;
+
+    // アップデート時刻を更新
+    time.update();
+
+    // influxとambientに送信
+    const auto okInflux = values.sendToInflux(influx, INFLUX_MEASUREMENT);
+    const auto okAmbient = values.sendToAmbient(ambient);
+
+    // 両方成功していたらシリアル出力にokを出す
+    if (okInflux && okAmbient) {
+      Serial.println("ok send [influx, ambient]");
+    }
+    return true;
+  };
   while (true) {
     const auto values = Values::read(bme);
-    // 値が期待する範囲内か
-    if (values.isValid) {
-      values.println(Serial);
-      const auto ok = time.isElapsed(AMBIENT_SEND_INTERVAL)
-        && values.sendToInflux(influx, INFLUX_MEASUREMENT)
-        && values.sendToAmbient(ambient);
-      if (ok) {
-        Serial.println("send values to ambient & influx");
-        time.update();
-      }
-      lit(ColorGRB::Green); // 緑色
-    } else {
-      lit(ColorGRB::Orange); // オレンジ色
-    }
+    lit(onReadValues(values) ? ColorGRB::Green : ColorGRB::Orange);
     delay(1000);
   }
 }
