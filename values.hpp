@@ -53,7 +53,7 @@ struct Values {
   /**
    * influxに値を送信する
    */
-  auto sendToInflux(InfluxDBClient & client, const char * const measurement) const -> bool;
+  auto sendToInflux(InfluxDBClient & client, const char * const measurement, const char * const device) const -> bool;
 
   /**
    * Serialに出力する

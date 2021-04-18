@@ -1,9 +1,11 @@
 constexpr const char * const WIFI_SSID = "";
 constexpr const char * const WIFI_PASSWD = "";
-constexpr const uint32_t AMBIENT_CHANNEL_ID = 0;
+constexpr const uint32_t AMBIENT_CHANNEL_ID = ;
 constexpr const char * const AMBIENT_WRITE_KEY = "";
-constexpr const char * const INFLUX_URL = "";
+constexpr const char * const INFLUX_URL = "http://influx";
 constexpr const char * const INFLUX_DB = "";
-constexpr const char * const INFLUX_USERNAME = "";
-constexpr const char * const INFLUX_PASSWORD = "";
-constexpr const char * const INFLUX_MEASUREMENT = "";
+constexpr const char * const INFLUX_ORG = "";
+constexpr const char * const INFLUX_TOKEN = "";
+constexpr const char * const INFLUX_BUCKET = "";
+constexpr const char * const INFLUX_MEASUREMENT = "climate";
+constexpr const char * const INFLUX_DEVICE = "bme280";

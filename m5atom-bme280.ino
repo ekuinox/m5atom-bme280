@@ -5,6 +5,7 @@
 #include <Ambient.h>
 #include <Ethernet.h>
 #include <InfluxDbClient.h>
+#include <InfluxDbCloud.h>
 #include "./values.hpp"
 #include "./time.hpp"
 #include "./conf.hpp"
@@ -48,7 +49,7 @@ auto lit(const ColorGRB & color) -> void;
 auto wifi = WiFiClient();
 auto ambient = Ambient();
 auto bme = BME280I2C();
-auto influx = InfluxDBClient(INFLUX_URL, INFLUX_DB);
+auto influx = InfluxDBClient(INFLUX_URL, INFLUX_ORG, INFLUX_BUCKET, INFLUX_TOKEN, InfluxDbCloud2CACert);
 
 #if ENABLE_SERVER
 WiFiServer server(80);
@@ -78,8 +79,8 @@ auto setup() -> void {
   ambient.begin(AMBIENT_CHANNEL_ID, AMBIENT_WRITE_KEY, &wifi);
 
   // Start influxdb
-  influx.setConnectionParamsV1(INFLUX_URL, INFLUX_DB, INFLUX_USERNAME, INFLUX_PASSWORD);
-  if (!influx.validateConnection()) {
+  while (!influx.validateConnection()) {
+    lit(ColorGRB::Red);
     Serial.println("Could not connect influxdb");
   }
 
@@ -135,8 +136,11 @@ auto readValuesTask(void * arg) -> void {
     time.update();
 
     // influxとambientに送信
-    const auto okInflux = values.sendToInflux(influx, INFLUX_MEASUREMENT);
+    const auto okInflux = values.sendToInflux(influx, INFLUX_MEASUREMENT, INFLUX_DEVICE);
     const auto okAmbient = values.sendToAmbient(ambient);
+    if (!okInflux) {
+      Serial.println(influx.getLastErrorMessage());
+    }
 
     // 両方成功していたらシリアル出力にokを出す
     if (okInflux && okAmbient) {

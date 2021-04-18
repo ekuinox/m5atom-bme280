@@ -38,8 +38,9 @@ auto Values::sendToAmbient(Ambient & ambient) const -> bool {
   return ok && ambient.send();
 }
 
-auto Values::sendToInflux(InfluxDBClient & client, const char * const measurement) const -> bool {
+auto Values::sendToInflux(InfluxDBClient & client, const char * const measurement, const char * const device) const -> bool {
   auto point = Point(measurement);
+  point.addTag("device", device);
   point.addField("temperature", this->temperature);
   point.addField("humidity", this->humidity);
   point.addField("atmosphericPressure", this->atmosphericPressure);
